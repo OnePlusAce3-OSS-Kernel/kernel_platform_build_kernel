@@ -26,23 +26,80 @@
 # OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 # IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-# Changes from Qualcomm Technologies, Inc. are provided under the following license:
-# Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
-# SPDX-License-Identifier: BSD-3-Clause-Clear
-
-ROOT_DIR="$("$(dirname "$(readlink -f "$0")")/../gettop.sh")"
+ROOT_DIR=$($(dirname $(readlink -f $0))/../gettop.sh)
 
 set -e
 
 source "${ROOT_DIR}/build/_setup_env.sh"
 
-rm -rf "$3"
-mkdir "$3"
+rm -rf $3
+mkdir $3
 
 set -x
-"$ROOT_DIR/build/android/merge_dtbs.py" --base "$1" --techpack "$2" --out "$3"
+$ROOT_DIR/build/android/merge_dtbs.py --base $1 --techpack $2 --out $3
 set +x
 
+#1.get all project number by "oplus,project-id" , save to proj_id_prop[]
+#2.pack dtbo.img for every project with thoese dtbo who support this project
+#3.cp one project-dtbo.img to dtbo.img for default compile process
+function dtbo_pack_by_proj_name(){
+	pushd ${1}
+	#1. get project name, such as xueying  zonda xigua....
+	proj_name=()
+	DTBO=$(find ./ -type f -name '*.dtbo' -print)
+	for dtbo in ${DTBO[@]}
+	do
+		#echo ".dtbo" $dtbo
+		prop=`basename $dtbo | cut -d "-" -f 1`
+		proj_name+=" "${prop}
+		#echo "proj_name" ${proj_name}
+	done
+	proj_name=($(awk -v RS=' ' '!a[$1]++' <<< ${proj_name[@]}))
+
+	#debug print project name
+	for e in ${proj_name[@]}
+	do
+		echo "proj_name2" ${e}
+	done
+
+	#2.get project number str  and  match dtbo list(.dtbo file for zonda xueying...) + build dtbo
+	for name in ${proj_name[@]}
+	do
+		echo "start build" ${name}
+		proj_num=()
+		dtbo_list=()
+		for dtbo_tmp in ${DTBO[@]}
+		do
+			#echo "search DTBO"${dtbo_tmp}
+			if [[ "${dtbo_tmp}" =~ "${name}" ]];then
+				#echo "dtbo file name match" ${dtbo_tmp}
+				#get .dtbo list of project name
+				dtbo_list+=" "${dtbo_tmp}
+				#get project number of project name
+				prop=($(fdtget -t i ${dtbo_tmp} / oplus,project-id))
+				proj_num+=" "${prop[@]}
+			fi
+		done
+		proj_num=($(awk -v RS=' ' '!a[$1]++' <<< ${proj_num[@]}))
+		proj_num_str=''
+		for tmp in ${proj_num[@]}
+		do
+			if [ $tmp -gt 100000 ];then
+				proj_num_str+="-"`printf '%x' $tmp`
+			else
+				proj_num_str+="-"$tmp
+			fi
+		done
+		dtbo_name_str=${name}${proj_num_str}
+		#echo "dtbo list" ${dtbo_list}
+		#echo "dtbo_name_str"  ${dtbo_name_str}
+		echo "pack ${dtbo_name_str}-dtbo.img with ${dtbo_list[@]}"
+		mkdtboimg.py create ${dtbo_name_str}-dtbo.img --page_size=${PAGE_SIZE} ${dtbo_list[@]}
+	done
+	popd
+}
+dtbo_pack_by_proj_name ${3}
 [[ -n "$(find ${3} -type f -name '*.dtb')" ]] && cat ${3}/*.dtb > ${3}/dtb.img
-[[ -n "$(find ${3} -type f -name '*.dtbo')" ]] && mkdtboimg.py create ${3}/dtbo.img --page_size=${PAGE_SIZE} ${3}/*.dtbo
+#[[ -n "$(find ${3} -type f -name '*.dtbo')" ]] && mkdtboimg.py create ${3}/dtbo.img --page_size=${PAGE_SIZE} ${3}/*.dtbo
+[[ -n "$(find ${3} -type f -name '*dtbo.img')" ]] && (img=($(find ${3} -type f -name '*dtbo.img'));cp ${img[0]} ${3}/dtbo.img)
 exit 0
