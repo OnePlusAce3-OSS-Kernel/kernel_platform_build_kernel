@@ -767,6 +767,35 @@ elif [ -n "${LTO}" ]; then
   exit 1
 fi
 
+# PGO config
+set -x
+PGO_MKFLAGS=()
+if [ "${KERNEL_DIR}" = "common" ]; then
+  if [ "${KERNEL_PGO_FLAG}" -eq 1 ]; then
+    echo " kpgo enable profiling"
+    PGO_MKFLAGS+=("KCFLAGS_PGO=-fprofile-generate")
+    ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+      -e ARCH_SUPPORTS_PGO_CLANG \
+      -e PGO_CLANG
+    (cd ${OUT_DIR} && make "${TOOL_ARGS[@]}" O=${OUT_DIR} "${MAKE_ARGS[@]}" "${PGO_MKFLAGS[@]}" olddefconfig)
+  elif [ "${KERNEL_PGO_FLAG}" -eq 2 ]; then
+    echo " kpgo use profile"
+    PGO_MKFLAGS+=("KCFLAGS_PGO=-fprofile-use=${ROOT_DIR}/common/pgo-profiles/vmlinux_v1.profdata -Wno-backend-plugin -Wno-profile-instr-unprofiled -Wno-profile-instr-out-of-date")
+    ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+      -e ARCH_SUPPORTS_PGO_CLANG \
+      -d PGO_CLANG
+    (cd ${OUT_DIR} && make "${TOOL_ARGS[@]}" O=${OUT_DIR} "${MAKE_ARGS[@]}" "${PGO_MKFLAGS[@]}" olddefconfig)
+  else
+    echo " kpgo disabled"
+    ${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+      -d ARCH_SUPPORTS_PGO_CLANG \
+      -d PGO_CLANG
+    (cd ${OUT_DIR} && make "${TOOL_ARGS[@]}" O=${OUT_DIR} "${MAKE_ARGS[@]}" olddefconfig)
+  fi
+echo "pgo mkflags: ${PGO_MKFLAGS[@]}"
+fi
+set +x
+
 if [ -n "${TAGS_CONFIG}" ]; then
   echo "========================================================"
   echo " Running tags command:"
@@ -854,7 +883,7 @@ echo "========================================================"
 echo " Building kernel"
 
 set -x
-(cd ${OUT_DIR} && make O=${OUT_DIR} ${TOOL_ARGS} "${MAKE_ARGS[@]}" ${MAKE_GOALS})
+(cd ${OUT_DIR} && make O=${OUT_DIR} ${TOOL_ARGS} "${MAKE_ARGS[@]}" "${PGO_MKFLAGS[@]}" ${MAKE_GOALS})
 set +x
 
 if [ -n "${POST_KERNEL_BUILD_CMDS}" ]; then
