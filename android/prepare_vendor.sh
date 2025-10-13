@@ -84,7 +84,7 @@
 # Currently only DTBs are compiled from folders matching this pattern:
 
 set -e
-
+OUT_DIR=""
 # rel_path <to> <from>
 # Generate relative directory path to reach directory <to> from <from>
 function rel_path() {
@@ -257,6 +257,33 @@ if [ "${COPY_NEEDED}" == "1" ]; then
 
   echo
   echo "  Preparing prebuilt folder ${ANDROID_KERNEL_OUT}"
+
+  ################################################################################
+  echo
+  echo "   build oplus external modules : ${CHIPSET_COMPANY}"
+  (
+    cd ${ROOT_DIR}
+    set -x
+    if [[ -f "oplus/config/modules.ext.5.15.oplus" && "$(cat oplus/config/modules.ext.5.15.oplus | wc -l)" -gt 0 ]]; then
+      # setup build parameters before building external modules
+      KBUILD_OPTIONS+=("CHIPSET_COMPANY=${CHIPSET_COMPANY}")
+      KBUILD_OPTIONS+=("OPLUS_VND_BUILD_PLATFORM=${OPLUS_VND_BUILD_PLATFORM}")
+      KBUILD_OPTIONS+=("OPLUS_FEATURE_BSP_DRV_VND_INJECT_TEST=${OPLUS_FEATURE_BSP_DRV_INJECT_TEST}")
+      EXT_MODULES=$(cat oplus/config/modules.ext.5.15.oplus) \
+      KERNEL_KIT=${ANDROID_KP_OUT_DIR}/dist \
+      KBUILD_OPTIONS=${KBUILD_OPTIONS[@]} \
+      OUT_DIR=out \
+      ./build/build_module.sh
+    fi
+    set +x
+  )
+  # copy oplus external modules to dist directory and append to the end of the vendor_dlkm.modules.load
+  if [ -d ${ROOT_DIR}/vendor/oplus ]; then
+    find ${ROOT_DIR}/vendor/oplus -name "*.ko" | xargs -i cp {} ${ANDROID_KP_OUT_DIR}/dist/
+    if [ -e ${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load ]; then
+      find ${ROOT_DIR}/vendor/oplus -name "*.ko" -printf "%f\n" >> ${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load
+    fi
+  fi
 
   first_stage_kos=$(mktemp)
   if [ -e ${ANDROID_KP_OUT_DIR}/dist/modules.load ]; then
