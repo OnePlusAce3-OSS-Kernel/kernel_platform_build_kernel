@@ -278,15 +278,25 @@ if [ "${COPY_NEEDED}" == "1" ]; then
     set +x
   )
   # copy oplus external modules to dist directory and append to the end of the vendor_dlkm.modules.load
-  if [ -d ${ROOT_DIR}/vendor/oplus ]; then
-    find ${ROOT_DIR}/vendor/oplus -name "*.ko" | xargs -i cp {} ${ANDROID_KP_OUT_DIR}/dist/
+  if [ -d ${ROOT_DIR}/out/oplus-modules ]; then
+    find ${ROOT_DIR}/out/oplus-modules -name "*.ko" | xargs -i cp {} ${ANDROID_KP_OUT_DIR}/dist/
     if [ -e ${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load ]; then
-      find ${ROOT_DIR}/vendor/oplus -name "*.ko" -printf "%f\n" >> ${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load
+      find ${ROOT_DIR}/out/oplus-modules -name "*.ko" -printf "%f\n" >> ${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load
+    fi
+    if [ -e ${ANDROID_KP_OUT_DIR}/dist/modules.load ]; then
+      find ${ROOT_DIR}/out/oplus-modules -name "*.ko" -printf "%f\n" >> ${ANDROID_KP_OUT_DIR}/dist/modules.load
+    fi
+    if [ -e ${ANDROID_KP_OUT_DIR}/dist/modules.load.recovery ]; then
+      find ${ROOT_DIR}/out/oplus-modules -name "*.ko" -printf "%f\n" >> ${ANDROID_KP_OUT_DIR}/dist/modules.load.recovery
     fi
   fi
 
   first_stage_kos=$(mktemp)
-  if [ -e ${ANDROID_KP_OUT_DIR}/dist/modules.load ]; then
+  if [ -e ${ANDROID_KP_OUT_DIR}/dist/modules.load.recovery ]; then
+    cat ${ANDROID_KP_OUT_DIR}/dist/modules.load.recovery | \
+      xargs -L 1 basename | \
+      xargs -L 1 find ${ANDROID_KP_OUT_DIR}/dist/ -name > ${first_stage_kos}
+  elif [ -e ${ANDROID_KP_OUT_DIR}/dist/modules.load ]; then
     cat ${ANDROID_KP_OUT_DIR}/dist/modules.load | \
       xargs -L 1 basename | \
       xargs -L 1 find ${ANDROID_KP_OUT_DIR}/dist/ -name > ${first_stage_kos}
@@ -305,8 +315,12 @@ if [ "${COPY_NEEDED}" == "1" ]; then
     cp ${ANDROID_KP_OUT_DIR}/dist/modules.blocklist ${ANDROID_KERNEL_OUT}/modules.blocklist
   fi
 
-  if [ -e ${ANDROID_KP_OUT_DIR}/dist/modules.load ]; then
-    cp ${ANDROID_KP_OUT_DIR}/dist/modules.load ${ANDROID_KERNEL_OUT}/modules.load
+  if [ -e "${ANDROID_KP_OUT_DIR}/dist/modules.load" ]; then
+    xargs -n 1 basename < "${ANDROID_KP_OUT_DIR}/dist/modules.load" > "${ANDROID_KERNEL_OUT}/modules.load"
+  fi
+
+  if [ -e "${ANDROID_KP_OUT_DIR}/dist/modules.load.recovery" ]; then
+    xargs -n 1 basename < "${ANDROID_KP_OUT_DIR}/dist/modules.load.recovery" > "${ANDROID_KERNEL_OUT}/modules.load.recovery"
   fi
 
   system_dlkm_kos=$(mktemp)
@@ -344,8 +358,7 @@ if [ "${COPY_NEEDED}" == "1" ]; then
   fi
 
   if [ -s ${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load ]; then
-    cp ${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load \
-      ${ANDROID_KERNEL_OUT}/vendor_dlkm/modules.load
+    xargs -n 1 basename < "${ANDROID_KP_OUT_DIR}/dist/vendor_dlkm.modules.load" > "${ANDROID_KERNEL_OUT}/vendor_dlkm/modules.load"
   fi
 
   if [ -e ${ANDROID_KP_OUT_DIR}/dist/system_dlkm.modules.blocklist ]; then
