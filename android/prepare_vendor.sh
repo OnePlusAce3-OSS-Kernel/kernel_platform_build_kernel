@@ -480,7 +480,7 @@ if [ -n "${ANDROID_PRODUCT_OUT}" ] && [ -n "${ANDROID_BUILD_TOP}" ]; then
   echo
   echo "  Compiling vendor devicetree overlays"
 
-  for project in $(cd ${ANDROID_BUILD_TOP} && find -L vendor/ -maxdepth 4 -type d -name "*-devicetree")
+  for project in $(cd ${ANDROID_BUILD_TOP} && find -L kernel_platform/msm-devicetrees/ -maxdepth 2 -type d -name "*-devicetree")
   do
     if [ ! -e "${project}/Makefile" ]; then
       echo "${project} does not have expected build configuration files, skipping..."
