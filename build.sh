@@ -1121,6 +1121,7 @@ if [ -n "${MODULES}" ]; then
     echo "========================================================"
     echo " Creating initramfs"
     rm -rf ${INITRAMFS_STAGING_DIR}
+    MODULES_LIST_ORDER=
     create_modules_staging "${MODULES_LIST}" ${MODULES_STAGING_DIR} \
       ${INITRAMFS_STAGING_DIR} "${MODULES_BLOCKLIST}" "${MODULES_RECOVERY_LIST:-""}" \
       "${MODULES_CHARGER_LIST:-""}" "-e" "${MODULES_LIST_ORDER}"
