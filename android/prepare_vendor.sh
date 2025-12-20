@@ -370,7 +370,7 @@ if [ "${COPY_NEEDED}" == "1" ]; then
     cp "${ANDROID_KP_OUT_DIR}/dist/extra_cmdline" "${ANDROID_KERNEL_OUT}/"
   fi
 
-  for file in Image vmlinux System.map .config Module.symvers kernel-uapi-headers.tar.gz ; do
+  for file in Image vmlinux System.map .config Module.symvers kernel-uapi-headers.tar.gz system_dlkm.img ; do
     cp ${ANDROID_KP_OUT_DIR}/dist/${file} ${ANDROID_KERNEL_OUT}/
   done
 
